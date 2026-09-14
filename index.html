@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Busca Direta | Internet Archive</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Google Fonts Inter para um visual limpo e profissional -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <main class="container">
+        <header class="header">
+            <span class="badge">Archive.org Search Engine</span>
+            <h1>Busca no Acervo</h1>
+            <p>Pesquisa direta na base de dados global do Internet Archive.</p>
+        </header>
+
+        <section class="search-section">
+            <form id="searchForm" class="search-form">
+                <div class="input-wrapper">
+                    <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    <input type="text" id="searchInput" placeholder="Digite o que deseja encontrar (ex: livros, áudios, softwares, sites antigos)..." autocomplete="off" required>
+                </div>
+                <button type="submit" id="searchButton">Pesquisar</button>
+            </form>
+        </section>
+
+        <div id="loading" class="loading hidden">
+            <div class="spinner"></div>
+            <span>Buscando no acervo...</span>
+        </div>
+
+        <section id="resultsSection" class="results-section">
+            <!-- Os resultados aparecerão aqui dinamicamente -->
+        </section>
+    </main>
+
+    <footer class="footer">
+        <p>Desenvolvido para uso no GitHub Pages • Dados fornecidos por <a href="https://archive.org" target="_blank" rel="noopener">Internet Archive</a></p>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
