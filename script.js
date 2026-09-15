@@ -151,7 +151,6 @@ async function openModal(identifier, title, mediaType, date, description, thumbU
                 const downloadUrl = `https://${server}${dir}/${fileName}`;
                 const lowerName = fileName.toLowerCase();
 
-                // Identifica se é arquivo compactado/imagem de disco suportada (.zip, .rar, .7z, .iso, tar, gz, etc.)
                 const isCompressed = (
                     fileFormat.includes('zip') || 
                     fileFormat.includes('rar') || 
@@ -212,19 +211,30 @@ async function openModal(identifier, title, mediaType, date, description, thumbU
     }
 }
 
-// Função para filtrar e listar o conteúdo interno de arquivos compactados / ISOs
+// Função corrigida para filtrar exatamente o conteúdo interno do arquivo compactado clicado
 function loadCompressedContent(server, dir, archiveFileName, allFiles) {
     archiveViewerTitle.textContent = `Conteúdo de: ${archiveFileName}`;
     archiveFilesList.innerHTML = '';
 
+    // Remove a extensão do arquivo principal para usar como prefixo de busca nos metadados do Archive
+    const lastDotIndex = archiveFileName.lastIndexOf('.');
+    const baseNameWithoutExt = lastDotIndex !== -1 ? archiveFileName.substring(0, lastDotIndex) : archiveFileName;
+
+    // Filtra apenas os arquivos associados especificamente a este pacote/arquivo compactado
     const internalFiles = allFiles.filter(f => {
-        return f.source === 'original' && f.name !== archiveFileName && (f.name.includes(archiveFileName) || f.format === 'Single File Original');
+        if (f.name === archiveFileName || f.name.endsWith('_meta.xml') || f.name.endsWith('_reviews.xml')) {
+            return false;
+        }
+        
+        const fNameLower = f.name.toLowerCase();
+        const baseLower = baseNameWithoutExt.toLowerCase();
+
+        // Verifica se o nome do subarquivo começa com o nome base do arquivo compactado ou contém correlação direta
+        return fNameLower.startsWith(baseLower) || f.name.includes(baseNameWithoutExt);
     });
 
-    const matchedItems = internalFiles.length > 0 ? internalFiles : allFiles.filter(f => f.name !== archiveFileName && !f.name.endsWith('.xml'));
-
-    if (matchedItems.length > 0) {
-        matchedItems.forEach(subFile => {
+    if (internalFiles.length > 0) {
+        internalFiles.forEach(subFile => {
             const subName = subFile.name;
             const subSize = subFile.size ? formatBytes(subFile.size) : '';
             const subUrl = `https://${server}${dir}/${subName}`;
@@ -246,7 +256,7 @@ function loadCompressedContent(server, dir, archiveFileName, allFiles) {
         subItem.className = 'file-item';
         subItem.innerHTML = `
             <div class="file-info">
-                <span class="file-name">Visualização interna direta indisponível para este formato</span>
+                <span class="file-name">Visualização interna detalhada indisponível para este arquivo específico</span>
                 <span class="file-meta">Você pode baixar o arquivo completo abaixo</span>
             </div>
             <a href="${containerUrl}" class="file-download-btn" download target="_blank" rel="noopener noreferrer">Baixar Arquivo</a>
