@@ -419,20 +419,60 @@ body {
     color: var(--text-secondary);
 }
 
-.file-download-btn {
-    background-color: var(--accent);
-    color: white;
-    text-decoration: none;
-    padding: 0.45rem 1rem;
-    font-size: 0.85rem;
-    font-weight: 500;
-    border-radius: 6px;
-    transition: background-color 0.2s;
+.file-actions {
+    display: flex;
+    gap: 0.5rem;
     flex-shrink: 0;
 }
 
-.file-download-btn:hover {
+.file-download-btn, .file-view-btn {
+    background-color: var(--accent);
+    color: white;
+    text-decoration: none;
+    padding: 0.45rem 0.85rem;
+    font-size: 0.82rem;
+    font-weight: 500;
+    border-radius: 6px;
+    transition: background-color 0.2s;
+    border: none;
+    cursor: pointer;
+    font-family: var(--font);
+}
+
+.file-download-btn:hover, .file-view-btn:hover {
     background-color: var(--accent-hover);
+}
+
+.file-view-btn {
+    background-color: rgba(59, 130, 246, 0.15);
+    color: var(--accent);
+    border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.file-view-btn:hover {
+    background-color: var(--accent);
+    color: white;
+}
+
+.archive-viewer-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+}
+
+.back-btn {
+    background: transparent;
+    border: none;
+    color: var(--accent);
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: var(--font);
+}
+
+.back-btn:hover {
+    text-decoration: underline;
 }
 
 /* Paginação Minimalista */
@@ -527,7 +567,6 @@ body {
         padding: 0.85rem;
     }
 
-    /* Mantém a miniatura à esquerda e o conteúdo ao lado no mobile */
     .result-card {
         flex-direction: row;
         align-items: flex-start;
@@ -541,6 +580,22 @@ body {
     .modal-header-info {
         flex-direction: column;
         align-items: center;
+        text-align: center;
+    }
+
+    .file-item {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .file-actions {
+        width: 100%;
+        display: flex;
+        justify-content: space-between;
+    }
+
+    .file-download-btn, .file-view-btn {
+        flex: 1;
         text-align: center;
     }
 }
