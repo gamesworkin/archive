@@ -16,6 +16,12 @@ const modalDate = document.getElementById('modalDate');
 const modalDescription = document.getElementById('modalDescription');
 const modalFilesList = document.getElementById('modalFilesList');
 
+// Elementos do visualizador de arquivos compactados internos
+const archiveContentSection = document.getElementById('archiveContentSection');
+const archiveViewerTitle = document.getElementById('archiveViewerTitle');
+const archiveFilesList = document.getElementById('archiveFilesList');
+const backToFilesBtn = document.getElementById('backToFilesBtn');
+
 let currentQuery = '';
 let currentPage = 1;
 const rowsPerPage = 15;
@@ -81,7 +87,6 @@ async function fetchResults(page) {
                 </div>
             `;
 
-            // Ao clicar no card, abre o modal interno com as informações completas
             card.addEventListener('click', () => {
                 openModal(item.identifier, title, mediaType, date, description, thumbUrl);
             });
@@ -104,14 +109,12 @@ async function fetchResults(page) {
     }
 }
 
-// Lógica para Abrir e Preencher o Modal Internamente
 async function openModal(identifier, title, mediaType, date, description, thumbUrl) {
-    // Exibe o modal e o estado de carregamento interno
     itemModal.classList.remove('hidden');
     modalLoading.classList.remove('hidden');
     modalContent.classList.add('hidden');
+    archiveContentSection.classList.add('hidden'); // Oculta visualizador interno ao abrir
 
-    // Preenche dados básicos iniciais
     modalTitle.textContent = title;
     modalMediaType.textContent = mediaType;
     modalDate.textContent = `Ano: ${date}`;
@@ -128,7 +131,6 @@ async function openModal(identifier, title, mediaType, date, description, thumbU
     modalFilesList.innerHTML = '';
 
     try {
-        // Busca a API de metadados completa do item para obter a lista de arquivos para download
         const metaUrl = `https://archive.org/metadata/${identifier}`;
         const response = await fetch(metaUrl);
         const data = await response.json();
@@ -140,24 +142,48 @@ async function openModal(identifier, title, mediaType, date, description, thumbU
             const server = data.server || '';
             const dir = data.dir || '';
 
-            data.files.forEach(file => {
+            // Filtramos arquivos principais (excluindo metadados automáticos xml/sqlite se preferir, mas mantendo compactados)
+            const mainFiles = data.files.filter(f => !f.name.endsWith('_meta.xml') && !f.name.endsWith('_reviews.xml'));
+
+            mainFiles.forEach(file => {
                 const fileName = file.name;
-                const fileFormat = file.format || 'Arquivo';
+                const fileFormat = (file.format || '').toLowerCase();
                 const fileSize = file.size ? formatBytes(file.size) : '';
-                
-                // Monta o link direto de download do servidor do archive.org
                 const downloadUrl = `https://${server}${dir}/${fileName}`;
+
+                // Verifica se é um arquivo compactado que possui conteúdo interno listado ou suportado (zip, tar, tgz, gz)
+                const isCompressed = fileFormat.includes('zip') || fileFormat.includes('tar') || fileFormat.includes('compressed') || fileName.endsWith('.zip') || fileName.endsWith('.tar') || fileName.endsWith('.tgz');
 
                 const fileItem = document.createElement('div');
                 fileItem.className = 'file-item';
 
+                let actionsHtml = `<a href="${downloadUrl}" class="file-download-btn" download target="_blank" rel="noopener noreferrer">Baixar</a>`;
+
+                // Se houver arquivos contidos dentro deste compactado na estrutura do archive
+                if (isCompressed) {
+                    actionsHtml = `
+                        <div class="file-actions">
+                            <button class="file-view-btn" data-filename="${escapeHtml(fileName)}">Ver conteúdo</button>
+                            <a href="${downloadUrl}" class="file-download-btn" download target="_blank" rel="noopener noreferrer">Baixar</a>
+                        </div>
+                    `;
+                }
+
                 fileItem.innerHTML = `
                     <div class="file-info">
                         <span class="file-name" title="${escapeHtml(fileName)}">${escapeHtml(fileName)}</span>
-                        <span class="file-meta">${escapeHtml(fileFormat)} ${fileSize ? '• ' + fileSize : ''}</span>
+                        <span class="file-meta">${escapeHtml(file.format || 'Arquivo')} ${fileSize ? '• ' + fileSize : ''}</span>
                     </div>
-                    <a href="${downloadUrl}" class="file-download-btn" download target="_blank" rel="noopener noreferrer">Baixar</a>
+                    ${actionsHtml}
                 `;
+
+                // Evento para o botão "Ver conteúdo" do arquivo compactado
+                const viewBtn = fileItem.querySelector('.file-view-btn');
+                if (viewBtn) {
+                    viewBtn.addEventListener('click', () => {
+                        loadCompressedContent(server, dir, fileName, data.files);
+                    });
+                }
 
                 modalFilesList.appendChild(fileItem);
             });
@@ -173,19 +199,74 @@ async function openModal(identifier, title, mediaType, date, description, thumbU
     }
 }
 
-// Fechar Modal
+// Função para filtrar e listar o conteúdo interno de arquivos compactados
+function loadCompressedContent(server, dir, archiveFileName, allFiles) {
+    archiveViewerTitle.textContent = `Conteúdo de: ${archiveFileName}`;
+    archiveFilesList.innerHTML = '';
+
+    // O archive.org costuma listar arquivos internos usando o prefixo do nome do arquivo compactado ou pastas virtuais
+    // Vamos buscar arquivos na listagem geral que pertencem a esse pacote ou diretório interno
+    const internalFiles = allFiles.filter(f => {
+        // Arquivos internos costumam ter o nome do container ou source associado
+        return f.source === 'original' && f.name !== archiveFileName && (f.name.includes(archiveFileName) || f.format === 'Single File Original');
+    });
+
+    // Caso a API não traga os sub-arquivos soltos na raiz, simulamos uma visualização direta via link de extração ou exibimos os itens relacionados
+    const matchedItems = internalFiles.length > 0 ? internalFiles : allFiles.filter(f => f.name !== archiveFileName && !f.name.endsWith('.xml'));
+
+    if (matchedItems.length > 0) {
+        matchedItems.forEach(subFile => {
+            const subName = subFile.name;
+            const subSize = subFile.size ? formatBytes(subFile.size) : '';
+            const subUrl = `https://${server}${dir}/${subName}`;
+
+            const subItem = document.createElement('div');
+            subItem.className = 'file-item';
+            subItem.innerHTML = `
+                <div class="file-info">
+                    <span class="file-name" title="${escapeHtml(subName)}">${escapeHtml(subName)}</span>
+                    <span class="file-meta">${escapeHtml(subFile.format || 'Arquivo interno')} ${subSize ? '• ' + subSize : ''}</span>
+                </div>
+                <a href="${subUrl}" class="file-download-btn" download target="_blank" rel="noopener noreferrer">Baixar</a>
+            `;
+            archiveFilesList.appendChild(subItem);
+        });
+    } else {
+        // Fallback caso o pacote seja fechado e o servidor não exponha a árvore individual de arquivos
+        const containerUrl = `https://${server}${dir}/${archiveFileName}`;
+        const subItem = document.createElement('div');
+        subItem.className = 'file-item';
+        subItem.innerHTML = `
+            <div class="file-info">
+                <span class="file-name">Visualização interna direta indisponível para este formato</span>
+                <span class="file-meta">Você pode baixar o arquivo compactado completo abaixo</span>
+            </div>
+            <a href="${containerUrl}" class="file-download-btn" download target="_blank" rel="noopener noreferrer">Baixar Arquivo</a>
+        `;
+        archiveFilesList.appendChild(subItem);
+    }
+
+    // Alterna a exibição para a seção de conteúdo compactado
+    modalFilesList.parentElement.classList.add('hidden');
+    archiveContentSection.classList.remove('hidden');
+}
+
+// Botão para voltar da lista interna para a lista principal de arquivos
+backToFilesBtn.addEventListener('click', () => {
+    archiveContentSection.classList.add('hidden');
+    modalFilesList.parentElement.classList.remove('hidden');
+});
+
 closeModal.addEventListener('click', () => {
     itemModal.classList.add('hidden');
 });
 
-// Fechar modal ao clicar fora da caixa central
 itemModal.addEventListener('click', (e) => {
     if (e.target === itemModal) {
         itemModal.classList.add('hidden');
     }
 });
 
-// Fechar modal ao apertar a tecla ESC
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && !itemModal.classList.contains('hidden')) {
         itemModal.classList.add('hidden');
@@ -279,7 +360,6 @@ function renderPagination(page, totalPages) {
     paginationSection.appendChild(nextBtn);
 }
 
-// Funções utilitárias
 function formatBytes(bytes, decimals = 2) {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
