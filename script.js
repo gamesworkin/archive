@@ -4,12 +4,23 @@ const resultsSection = document.getElementById('resultsSection');
 const paginationSection = document.getElementById('paginationSection');
 const loading = document.getElementById('loading');
 
+// Elementos do Modal
+const itemModal = document.getElementById('itemModal');
+const closeModal = document.getElementById('closeModal');
+const modalLoading = document.getElementById('modalLoading');
+const modalContent = document.getElementById('modalContent');
+const modalThumb = document.getElementById('modalThumb');
+const modalMediaType = document.getElementById('modalMediaType');
+const modalTitle = document.getElementById('modalTitle');
+const modalDate = document.getElementById('modalDate');
+const modalDescription = document.getElementById('modalDescription');
+const modalFilesList = document.getElementById('modalFilesList');
+
 let currentQuery = '';
 let currentPage = 1;
 const rowsPerPage = 15;
 const maxVisiblePages = 5;
 
-// Logo oficial do Internet Archive usada como fallback padrão
 const FALLBACK_LOGO = 'https://archive.org/images/glogo.png';
 
 searchForm.addEventListener('submit', (e) => {
@@ -49,9 +60,6 @@ async function fetchResults(page) {
             const description = item.description || 'Nenhuma descrição disponível para este item.';
             const date = item.date ? item.date.substring(0, 4) : 'Data não informada';
             const mediaType = item.mediatype ? capitalize(item.mediatype) : 'Item';
-            const itemUrl = `https://archive.org/details/${item.identifier}`;
-            
-            // URL padrão da API de miniaturas do Internet Archive
             const thumbUrl = `https://archive.org/services/img/${item.identifier}`;
 
             const card = document.createElement('div');
@@ -59,11 +67,11 @@ async function fetchResults(page) {
             
             card.innerHTML = `
                 <div class="result-thumbnail">
-                    <img src="${thumbUrl}" alt="Capa de ${escapeHtml(title)}" loading="lazy" onerror="this.onerror=null; this.src='${FALLBACK_LOGO}'; this.classList.add('fallback-logo');">
+                    <img src="${thumbUrl}" alt="Capa" loading="lazy" onerror="this.onerror=null; this.src='${FALLBACK_LOGO}'; this.classList.add('fallback-logo');">
                 </div>
                 <div class="result-content">
                     <div class="result-header">
-                        <a href="${itemUrl}" target="_blank" rel="noopener noreferrer" class="result-title">${escapeHtml(title)}</a>
+                        <h2 class="result-title">${escapeHtml(title)}</h2>
                     </div>
                     <div class="result-meta">
                         <span>Tipo: ${escapeHtml(mediaType)}</span>
@@ -72,6 +80,11 @@ async function fetchResults(page) {
                     <p class="result-description">${escapeHtml(stripHtml(description))}</p>
                 </div>
             `;
+
+            // Ao clicar no card, abre o modal interno com as informações completas
+            card.addEventListener('click', () => {
+                openModal(item.identifier, title, mediaType, date, description, thumbUrl);
+            });
 
             resultsSection.appendChild(card);
         });
@@ -90,6 +103,94 @@ async function fetchResults(page) {
         console.error('Erro na busca do Archive:', error);
     }
 }
+
+// Lógica para Abrir e Preencher o Modal Internamente
+async function openModal(identifier, title, mediaType, date, description, thumbUrl) {
+    // Exibe o modal e o estado de carregamento interno
+    itemModal.classList.remove('hidden');
+    modalLoading.classList.remove('hidden');
+    modalContent.classList.add('hidden');
+
+    // Preenche dados básicos iniciais
+    modalTitle.textContent = title;
+    modalMediaType.textContent = mediaType;
+    modalDate.textContent = `Ano: ${date}`;
+    modalDescription.textContent = stripHtml(description);
+    
+    modalThumb.src = thumbUrl;
+    modalThumb.className = 'modal-thumb';
+    modalThumb.onerror = function() {
+        this.onerror = null;
+        this.src = FALLBACK_LOGO;
+        this.classList.add('fallback-logo');
+    };
+
+    modalFilesList.innerHTML = '';
+
+    try {
+        // Busca a API de metadados completa do item para obter a lista de arquivos para download
+        const metaUrl = `https://archive.org/metadata/${identifier}`;
+        const response = await fetch(metaUrl);
+        const data = await response.json();
+
+        modalLoading.classList.add('hidden');
+        modalContent.classList.remove('hidden');
+
+        if (data && data.files && data.files.length > 0) {
+            const server = data.server || '';
+            const dir = data.dir || '';
+
+            data.files.forEach(file => {
+                const fileName = file.name;
+                const fileFormat = file.format || 'Arquivo';
+                const fileSize = file.size ? formatBytes(file.size) : '';
+                
+                // Monta o link direto de download do servidor do archive.org
+                const downloadUrl = `https://${server}${dir}/${fileName}`;
+
+                const fileItem = document.createElement('div');
+                fileItem.className = 'file-item';
+
+                fileItem.innerHTML = `
+                    <div class="file-info">
+                        <span class="file-name" title="${escapeHtml(fileName)}">${escapeHtml(fileName)}</span>
+                        <span class="file-meta">${escapeHtml(fileFormat)} ${fileSize ? '• ' + fileSize : ''}</span>
+                    </div>
+                    <a href="${downloadUrl}" class="file-download-btn" download target="_blank" rel="noopener noreferrer">Baixar</a>
+                `;
+
+                modalFilesList.appendChild(fileItem);
+            });
+        } else {
+            modalFilesList.innerHTML = '<div class="file-item"><span class="file-name">Nenhum arquivo direto disponível para download.</span></div>';
+        }
+
+    } catch (error) {
+        modalLoading.classList.add('hidden');
+        modalContent.classList.remove('hidden');
+        modalFilesList.innerHTML = '<div class="file-item"><span class="file-name">Erro ao carregar arquivos para download.</span></div>';
+        console.error('Erro ao buscar metadados do item:', error);
+    }
+}
+
+// Fechar Modal
+closeModal.addEventListener('click', () => {
+    itemModal.classList.add('hidden');
+});
+
+// Fechar modal ao clicar fora da caixa central
+itemModal.addEventListener('click', (e) => {
+    if (e.target === itemModal) {
+        itemModal.classList.add('hidden');
+    }
+});
+
+// Fechar modal ao apertar a tecla ESC
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !itemModal.classList.contains('hidden')) {
+        itemModal.classList.add('hidden');
+    }
+});
 
 function renderPagination(page, totalPages) {
     paginationSection.innerHTML = '';
@@ -176,6 +277,16 @@ function renderPagination(page, totalPages) {
         }
     });
     paginationSection.appendChild(nextBtn);
+}
+
+// Funções utilitárias
+function formatBytes(bytes, decimals = 2) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const dm = decimals < 0 ? 0 : decimals;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
 }
 
 function escapeHtml(str) {
