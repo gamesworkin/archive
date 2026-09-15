@@ -113,7 +113,7 @@ async function openModal(identifier, title, mediaType, date, description, thumbU
     itemModal.classList.remove('hidden');
     modalLoading.classList.remove('hidden');
     modalContent.classList.add('hidden');
-    archiveContentSection.classList.add('hidden'); // Oculta visualizador interno ao abrir
+    archiveContentSection.classList.add('hidden');
 
     modalTitle.textContent = title;
     modalMediaType.textContent = mediaType;
@@ -142,7 +142,6 @@ async function openModal(identifier, title, mediaType, date, description, thumbU
             const server = data.server || '';
             const dir = data.dir || '';
 
-            // Filtramos arquivos principais (excluindo metadados automáticos xml/sqlite se preferir, mas mantendo compactados)
             const mainFiles = data.files.filter(f => !f.name.endsWith('_meta.xml') && !f.name.endsWith('_reviews.xml'));
 
             mainFiles.forEach(file => {
@@ -150,16 +149,31 @@ async function openModal(identifier, title, mediaType, date, description, thumbU
                 const fileFormat = (file.format || '').toLowerCase();
                 const fileSize = file.size ? formatBytes(file.size) : '';
                 const downloadUrl = `https://${server}${dir}/${fileName}`;
+                const lowerName = fileName.toLowerCase();
 
-                // Verifica se é um arquivo compactado que possui conteúdo interno listado ou suportado (zip, tar, tgz, gz)
-                const isCompressed = fileFormat.includes('zip') || fileFormat.includes('tar') || fileFormat.includes('compressed') || fileName.endsWith('.zip') || fileName.endsWith('.tar') || fileName.endsWith('.tgz');
+                // Identifica se é arquivo compactado/imagem de disco suportada (.zip, .rar, .7z, .iso, tar, gz, etc.)
+                const isCompressed = (
+                    fileFormat.includes('zip') || 
+                    fileFormat.includes('rar') || 
+                    fileFormat.includes('7z') || 
+                    fileFormat.includes('iso') || 
+                    fileFormat.includes('tar') || 
+                    fileFormat.includes('compressed') || 
+                    fileFormat.includes('package') ||
+                    lowerName.endsWith('.zip') || 
+                    lowerName.endsWith('.rar') || 
+                    lowerName.endsWith('.7z') || 
+                    lowerName.endsWith('.iso') || 
+                    lowerName.endsWith('.tar') || 
+                    lowerName.endsWith('.tgz') || 
+                    lowerName.endsWith('.gz')
+                );
 
                 const fileItem = document.createElement('div');
                 fileItem.className = 'file-item';
 
                 let actionsHtml = `<a href="${downloadUrl}" class="file-download-btn" download target="_blank" rel="noopener noreferrer">Baixar</a>`;
 
-                // Se houver arquivos contidos dentro deste compactado na estrutura do archive
                 if (isCompressed) {
                     actionsHtml = `
                         <div class="file-actions">
@@ -177,7 +191,6 @@ async function openModal(identifier, title, mediaType, date, description, thumbU
                     ${actionsHtml}
                 `;
 
-                // Evento para o botão "Ver conteúdo" do arquivo compactado
                 const viewBtn = fileItem.querySelector('.file-view-btn');
                 if (viewBtn) {
                     viewBtn.addEventListener('click', () => {
@@ -199,19 +212,15 @@ async function openModal(identifier, title, mediaType, date, description, thumbU
     }
 }
 
-// Função para filtrar e listar o conteúdo interno de arquivos compactados
+// Função para filtrar e listar o conteúdo interno de arquivos compactados / ISOs
 function loadCompressedContent(server, dir, archiveFileName, allFiles) {
     archiveViewerTitle.textContent = `Conteúdo de: ${archiveFileName}`;
     archiveFilesList.innerHTML = '';
 
-    // O archive.org costuma listar arquivos internos usando o prefixo do nome do arquivo compactado ou pastas virtuais
-    // Vamos buscar arquivos na listagem geral que pertencem a esse pacote ou diretório interno
     const internalFiles = allFiles.filter(f => {
-        // Arquivos internos costumam ter o nome do container ou source associado
         return f.source === 'original' && f.name !== archiveFileName && (f.name.includes(archiveFileName) || f.format === 'Single File Original');
     });
 
-    // Caso a API não traga os sub-arquivos soltos na raiz, simulamos uma visualização direta via link de extração ou exibimos os itens relacionados
     const matchedItems = internalFiles.length > 0 ? internalFiles : allFiles.filter(f => f.name !== archiveFileName && !f.name.endsWith('.xml'));
 
     if (matchedItems.length > 0) {
@@ -232,26 +241,23 @@ function loadCompressedContent(server, dir, archiveFileName, allFiles) {
             archiveFilesList.appendChild(subItem);
         });
     } else {
-        // Fallback caso o pacote seja fechado e o servidor não exponha a árvore individual de arquivos
         const containerUrl = `https://${server}${dir}/${archiveFileName}`;
         const subItem = document.createElement('div');
         subItem.className = 'file-item';
         subItem.innerHTML = `
             <div class="file-info">
                 <span class="file-name">Visualização interna direta indisponível para este formato</span>
-                <span class="file-meta">Você pode baixar o arquivo compactado completo abaixo</span>
+                <span class="file-meta">Você pode baixar o arquivo completo abaixo</span>
             </div>
             <a href="${containerUrl}" class="file-download-btn" download target="_blank" rel="noopener noreferrer">Baixar Arquivo</a>
         `;
         archiveFilesList.appendChild(subItem);
     }
 
-    // Alterna a exibição para a seção de conteúdo compactado
     modalFilesList.parentElement.classList.add('hidden');
     archiveContentSection.classList.remove('hidden');
 }
 
-// Botão para voltar da lista interna para a lista principal de arquivos
 backToFilesBtn.addEventListener('click', () => {
     archiveContentSection.classList.add('hidden');
     modalFilesList.parentElement.classList.remove('hidden');
