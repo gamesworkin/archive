@@ -527,14 +527,15 @@ body {
         padding: 0.85rem;
     }
 
+    /* Mantém a miniatura à esquerda e o conteúdo ao lado no mobile */
     .result-card {
-        flex-direction: column;
-        align-items: center;
-        text-align: center;
+        flex-direction: row;
+        align-items: flex-start;
+        text-align: left;
     }
 
     .result-meta {
-        justify-content: center;
+        justify-content: flex-start;
     }
 
     .modal-header-info {
