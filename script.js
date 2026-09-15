@@ -6,8 +6,11 @@ const loading = document.getElementById('loading');
 
 let currentQuery = '';
 let currentPage = 1;
-const rowsPerPage = 15; // Quantidade de itens por página
-const maxVisiblePages = 5; // Quantos números de páginas mostrar por bloco
+const rowsPerPage = 15;
+const maxVisiblePages = 5;
+
+// Logo oficial do Internet Archive usada como fallback padrão
+const FALLBACK_LOGO = 'https://archive.org/images/glogo.png';
 
 searchForm.addEventListener('submit', (e) => {
     e.preventDefault();
@@ -15,7 +18,7 @@ searchForm.addEventListener('submit', (e) => {
     if (!query) return;
 
     currentQuery = query;
-    currentPage = 1; // Reseta para a primeira página na nova busca
+    currentPage = 1;
     fetchResults(currentPage);
 });
 
@@ -26,7 +29,6 @@ async function fetchResults(page) {
 
     try {
         const encodedQuery = encodeURIComponent(currentQuery);
-        // O Archive.org usa parâmetro 'page' e 'rows'
         const url = `https://archive.org/advancedsearch.php?q=${encodedQuery}&fl[]=identifier,title,description,date,mediatype&rows=${rowsPerPage}&page=${page}&output=json`;
 
         const response = await fetch(url);
@@ -42,39 +44,44 @@ async function fetchResults(page) {
             return;
         }
 
-        // Renderiza os cards de resultados
         docs.forEach(item => {
             const title = item.title || item.identifier;
             const description = item.description || 'Nenhuma descrição disponível para este item.';
             const date = item.date ? item.date.substring(0, 4) : 'Data não informada';
             const mediaType = item.mediatype ? capitalize(item.mediatype) : 'Item';
             const itemUrl = `https://archive.org/details/${item.identifier}`;
+            
+            // URL padrão da API de miniaturas do Internet Archive
+            const thumbUrl = `https://archive.org/services/img/${item.identifier}`;
 
             const card = document.createElement('div');
             card.className = 'result-card';
             
             card.innerHTML = `
-                <div class="result-header">
-                    <a href="${itemUrl}" target="_blank" rel="noopener noreferrer" class="result-title">${escapeHtml(title)}</a>
+                <div class="result-thumbnail">
+                    <img src="${thumbUrl}" alt="Capa de ${escapeHtml(title)}" loading="lazy" onerror="this.onerror=null; this.src='${FALLBACK_LOGO}'; this.classList.add('fallback-logo');">
                 </div>
-                <div class="result-meta">
-                    <span>Tipo: ${escapeHtml(mediaType)}</span>
-                    <span>Ano: ${escapeHtml(date)}</span>
+                <div class="result-content">
+                    <div class="result-header">
+                        <a href="${itemUrl}" target="_blank" rel="noopener noreferrer" class="result-title">${escapeHtml(title)}</a>
+                    </div>
+                    <div class="result-meta">
+                        <span>Tipo: ${escapeHtml(mediaType)}</span>
+                        <span>Ano: ${escapeHtml(date)}</span>
+                    </div>
+                    <p class="result-description">${escapeHtml(stripHtml(description))}</p>
                 </div>
-                <p class="result-description">${escapeHtml(stripHtml(description))}</p>
             `;
 
             resultsSection.appendChild(card);
         });
 
-        // Configura e exibe a paginação (limitando o total máximo para evitar estouro da API)
-        const maxApiPages = Math.min(Math.ceil(totalFound / rowsPerPage), 100); // Limitado a 100 páginas para manter ótima performance
+        const maxApiPages = Math.min(Math.ceil(totalFound / rowsPerPage), 100);
         if (maxApiPages > 1) {
             renderPagination(page, maxApiPages);
             paginationSection.classList.remove('hidden');
         }
 
-        // Rola suavemente para o topo dos resultados ao trocar de página
         window.scrollTo({ top: 0, behavior: 'smooth' });
 
     } catch (error) {
@@ -87,7 +94,6 @@ async function fetchResults(page) {
 function renderPagination(page, totalPages) {
     paginationSection.innerHTML = '';
 
-    // Botão Anterior (<)
     const prevBtn = document.createElement('button');
     prevBtn.className = 'page-btn';
     prevBtn.innerHTML = '&lt;';
@@ -101,7 +107,6 @@ function renderPagination(page, totalPages) {
     });
     paginationSection.appendChild(prevBtn);
 
-    // Cálculo dos blocos de 5 páginas
     let startPage = Math.max(1, page - Math.floor(maxVisiblePages / 2));
     let endPage = startPage + maxVisiblePages - 1;
 
@@ -110,7 +115,6 @@ function renderPagination(page, totalPages) {
         startPage = Math.max(1, endPage - maxVisiblePages + 1);
     }
 
-    // Indicador e reticências iniciais se necessário
     if (startPage > 1) {
         const firstPageBtn = document.createElement('button');
         firstPageBtn.className = 'page-btn';
@@ -129,7 +133,6 @@ function renderPagination(page, totalPages) {
         }
     }
 
-    // Renderiza os números das páginas (máximo 5 por vez)
     for (let i = startPage; i <= endPage; i++) {
         const pageBtn = document.createElement('button');
         pageBtn.className = `page-btn ${i === page ? 'active' : ''}`;
@@ -143,7 +146,6 @@ function renderPagination(page, totalPages) {
         paginationSection.appendChild(pageBtn);
     }
 
-    // Reticências finais e última página se necessário
     if (endPage < totalPages) {
         if (endPage < totalPages - 1) {
             const ellipsis = document.createElement('span');
@@ -162,7 +164,6 @@ function renderPagination(page, totalPages) {
         paginationSection.appendChild(lastPageBtn);
     }
 
-    // Botão Próximo (>)
     const nextBtn = document.createElement('button');
     nextBtn.className = 'page-btn';
     nextBtn.innerHTML = '&gt;';
@@ -177,7 +178,6 @@ function renderPagination(page, totalPages) {
     paginationSection.appendChild(nextBtn);
 }
 
-// Funções utilitárias de segurança
 function escapeHtml(str) {
     return String(str)
         .replace(/&/g, '&amp;')
