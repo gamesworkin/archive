@@ -44,6 +44,41 @@
         </nav>
     </main>
 
+    <!-- Modal Interno de Detalhes e Downloads -->
+    <div id="itemModal" class="modal-overlay hidden">
+        <div class="modal-container">
+            <button id="closeModal" class="modal-close" aria-label="Fechar modal">&times;</button>
+            
+            <div id="modalLoading" class="modal-loading">
+                <div class="spinner"></div>
+                <span>Carregando detalhes e arquivos...</span>
+            </div>
+
+            <div id="modalContent" class="modal-content hidden">
+                <div class="modal-header-info">
+                    <img id="modalThumb" src="" alt="Capa" class="modal-thumb">
+                    <div class="modal-titles">
+                        <span id="modalMediaType" class="badge">Tipo</span>
+                        <h2 id="modalTitle">Título do Item</h2>
+                        <p id="modalDate" class="modal-date">Ano</p>
+                    </div>
+                </div>
+
+                <div class="modal-section-group">
+                    <h3>Descrição Completa</h3>
+                    <div id="modalDescription" class="modal-description-box"></div>
+                </div>
+
+                <div class="modal-section-group">
+                    <h3>Arquivos para Download</h3>
+                    <div id="modalFilesList" class="modal-files-list">
+                        <!-- Lista de arquivos injetada via JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <footer class="footer">
         <p>Desenvolvido para uso no GitHub Pages • Dados fornecidos por <a href="https://archive.org" target="_blank" rel="noopener">Internet Archive</a></p>
     </footer>
